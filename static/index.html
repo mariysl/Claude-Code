@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BizAuto — Business Process Automation</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">BizAuto</span>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section-label">Automate</div>
+      <button class="nav-btn active" onclick="setExample('')">New Process</button>
+      <div class="nav-section-label">Examples</div>
+      <button class="nav-btn" onclick="setExample('plan_launch')">Product Launch Plan</button>
+      <button class="nav-btn" onclick="setExample('sales_email')">Sales Email Campaign</button>
+      <button class="nav-btn" onclick="setExample('roi_analysis')">ROI Analysis</button>
+      <button class="nav-btn" onclick="setExample('onboarding')">Employee Onboarding</button>
+      <button class="nav-btn" onclick="setExample('meeting')">Weekly Team Meeting</button>
+      <button class="nav-btn" onclick="setExample('social')">Social Media Campaign</button>
+      <button class="nav-btn" onclick="setExample('sop')">Write an SOP</button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="powered-by">Powered by Claude claude-opus-4-6</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="header">
+      <h1>Business Process Automation</h1>
+      <p class="subtitle">Describe any business process — Claude will automate it for you.</p>
+    </header>
+
+    <!-- Input area -->
+    <section class="input-section">
+      <div class="input-wrapper">
+        <textarea
+          id="processInput"
+          class="process-input"
+          placeholder="Describe what you want to automate...&#10;&#10;Examples:&#10;• Plan a SaaS product launch for Q2&#10;• Create an onboarding checklist for new sales reps&#10;• Draft outreach emails for potential investors&#10;• Calculate ROI on a $50k marketing campaign&#10;• Build a weekly marketing report template"
+          rows="5"
+        ></textarea>
+        <div class="input-actions">
+          <span class="char-count" id="charCount">0 / 2000</span>
+          <button class="run-btn" id="runBtn" onclick="runAutomation()">
+            <span class="run-icon">▶</span> Automate
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Output area -->
+    <section class="output-section" id="outputSection" style="display:none">
+      <!-- Status bar -->
+      <div class="status-bar" id="statusBar">
+        <span class="status-dot"></span>
+        <span class="status-text" id="statusText">Processing...</span>
+      </div>
+
+      <!-- Claude's narrative text -->
+      <div class="response-text card" id="responseText" style="display:none"></div>
+
+      <!-- Artifacts grid -->
+      <div class="artifacts-grid" id="artifactsGrid"></div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
