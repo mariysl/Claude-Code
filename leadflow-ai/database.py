@@ -12,6 +12,16 @@ def get_conn() -> sqlite3.Connection:
 def init_db():
     with get_conn() as conn:
         conn.executescript("""
+            CREATE TABLE IF NOT EXISTS subscribers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE,
+                access_token TEXT UNIQUE NOT NULL,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
+                status TEXT DEFAULT 'active',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 first_name TEXT NOT NULL,
@@ -104,6 +114,39 @@ def get_all_campaigns() -> list[dict]:
             d["emails"] = json.loads(d["emails_json"])
             results.append(d)
         return results
+
+
+def create_subscriber(email: str, token: str, customer_id: str, sub_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO subscribers (email, access_token, stripe_customer_id, stripe_subscription_id, status) "
+            "VALUES (?, ?, ?, ?, 'active')",
+            (email, token, customer_id, sub_id),
+        )
+
+
+def get_subscriber_by_token(token: str) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM subscribers WHERE access_token = ? AND status = 'active'", (token,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_subscriber_by_customer(customer_id: str) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM subscribers WHERE stripe_customer_id = ?", (customer_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def set_subscriber_status(customer_id: str, status: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE subscribers SET status = ? WHERE stripe_customer_id = ?",
+            (status, customer_id),
+        )
 
 
 def get_stats() -> dict:
