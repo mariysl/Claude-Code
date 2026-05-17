@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Richmond HVAC Pro — Heating & Cooling Experts</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #222; }
+    header {
+      background: #1B2A4A;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header span { font-size: 14px; color: #aac; }
+    .hero {
+      background: linear-gradient(135deg, #1B2A4A 0%, #2d4a7a 100%);
+      color: #fff;
+      padding: 80px 32px;
+      text-align: center;
+    }
+    .hero h2 { font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+    .hero p { font-size: 18px; color: #ccd; max-width: 560px; margin: 0 auto 32px; }
+    .hero-cta {
+      background: #E87722;
+      color: #fff;
+      padding: 16px 32px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+    .services {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      padding: 60px 32px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .service-card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .service-card .icon { font-size: 36px; margin-bottom: 12px; }
+    .service-card h3 { font-size: 16px; font-weight: 700; color: #1B2A4A; margin-bottom: 8px; }
+    .service-card p { font-size: 14px; color: #666; }
+    footer {
+      background: #1B2A4A;
+      color: #aac;
+      padding: 32px;
+      text-align: center;
+      font-size: 14px;
+    }
+    footer strong { color: #fff; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Richmond HVAC Pro</h1>
+  <span>📞 (804) 555-0100</span>
+</header>
+
+<div class="hero">
+  <h2>Richmond's Most Reliable HVAC Service</h2>
+  <p>Fast response, fair prices, and local technicians who know Richmond weather.</p>
+  <p style="margin-top:16px; font-size:14px; color:#aac;">
+    The orange button in the bottom-right corner is the RVA Leads widget —<br>
+    click it to see the lead capture form in action.
+  </p>
+</div>
+
+<div class="services">
+  <div class="service-card">
+    <div class="icon">❄️</div>
+    <h3>AC Repair & Installation</h3>
+    <p>Fast fixes and new system installs for Richmond summers.</p>
+  </div>
+  <div class="service-card">
+    <div class="icon">🔥</div>
+    <h3>Heating Systems</h3>
+    <p>Furnace repair, heat pumps, and emergency heating service.</p>
+  </div>
+  <div class="service-card">
+    <div class="icon">🌡️</div>
+    <h3>Maintenance Plans</h3>
+    <p>Seasonal tune-ups to keep your system running efficiently.</p>
+  </div>
+  <div class="service-card">
+    <div class="icon">💨</div>
+    <h3>Air Quality</h3>
+    <p>Duct cleaning, filtration, and humidity control.</p>
+  </div>
+</div>
+
+<footer>
+  <strong>Richmond HVAC Pro</strong> · Licensed & Insured · Serving Richmond, VA since 2008<br>
+  <small style="margin-top:8px; display:block; color:#778">
+    Widget powered by <strong style="color:#E87722">RVA Leads</strong>
+  </small>
+</footer>
+
+<!--
+  ════════════════════════════════════════════════════════════════════════
+  RVA Leads Widget Embed Code
+  ────────────────────────────────────────────────────────────────────────
+  Copy these two tags to any page where you want the lead capture widget.
+  Change data-api-url to your deployed backend URL.
+  ════════════════════════════════════════════════════════════════════════
+-->
+<script
+  src="http://localhost:3001/widget/widget.js"
+  data-api-url="http://localhost:3001"
+  data-business-name="Richmond HVAC Pro"
+  data-label="Get a Free Quote"
+  defer
+></script>
+
+</body>
+</html>
