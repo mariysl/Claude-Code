@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeadFlow AI — Cold Outreach Automation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .pulse-ring {
+      animation: pulse-ring 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    .slide-in {
+      animation: slideIn .3s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .fade-in {
+      animation: fadeIn .25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    textarea { resize: vertical; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .typing-cursor::after {
+      content: '▋';
+      animation: blink .7s step-end infinite;
+    }
+    @keyframes blink {
+      from, to { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<!-- ── SIDEBAR ─────────────────────────────────────────────────────────────── -->
+<div class="fixed inset-y-0 left-0 w-60 bg-slate-900 flex flex-col z-30">
+  <div class="p-6 border-b border-slate-700">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">LF</div>
+      <div>
+        <div class="text-white font-semibold text-sm">LeadFlow AI</div>
+        <div class="text-slate-400 text-xs">Outreach Automation</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 p-4 space-y-1">
+    <button onclick="showPage('leads')" id="nav-leads"
+      class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Leads
+    </button>
+    <button onclick="showPage('campaigns')" id="nav-campaigns"
+      class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      Campaigns
+    </button>
+    <button onclick="showPage('settings')" id="nav-settings"
+      class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </button>
+  </nav>
+
+  <!-- Stats bottom -->
+  <div class="p-4 border-t border-slate-700 space-y-1">
+    <div class="text-xs text-slate-500 uppercase tracking-wide mb-2">Account</div>
+    <div class="flex justify-between text-xs">
+      <span class="text-slate-400">Leads</span>
+      <span class="text-slate-200 font-medium" id="stat-leads">0</span>
+    </div>
+    <div class="flex justify-between text-xs">
+      <span class="text-slate-400">Campaigns</span>
+      <span class="text-slate-200 font-medium" id="stat-campaigns">0</span>
+    </div>
+    <div class="flex justify-between text-xs">
+      <span class="text-slate-400">Emails drafted</span>
+      <span class="text-slate-200 font-medium" id="stat-emails">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────────────────────────── -->
+<div class="ml-60 min-h-screen">
+
+  <!-- LEADS PAGE -->
+  <div id="page-leads" class="page p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">Leads</h1>
+        <p class="text-slate-500 text-sm mt-1">Add prospects and generate personalized email sequences with AI.</p>
+      </div>
+      <button onclick="document.getElementById('add-lead-form').scrollIntoView({behavior:'smooth'})"
+        class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Add Lead
+      </button>
+    </div>
+
+    <!-- Add Lead Form -->
+    <div id="add-lead-form" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-8">
+      <h2 class="text-base font-semibold text-slate-900 mb-5">Add New Lead</h2>
+      <form id="lead-form" onsubmit="submitLead(event)" class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">First Name *</label>
+          <input name="first_name" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Sarah">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Last Name *</label>
+          <input name="last_name" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Chen">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Work Email</label>
+          <input name="email" type="email" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="sarah@company.com">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Company *</label>
+          <input name="company" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Acme Corp">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Job Title *</label>
+          <input name="role" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="VP of Sales">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Industry *</label>
+          <input name="industry" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="SaaS / B2B Tech">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Pain Points
+            <span class="text-slate-400 font-normal ml-1">— What challenges does this person likely face?</span>
+          </label>
+          <textarea name="pain_points" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g. Long sales cycles, high churn rate, sales team not hitting quota, manual CRM data entry"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Additional Context
+            <span class="text-slate-400 font-normal ml-1">— Recent news, LinkedIn info, mutual connections</span>
+          </label>
+          <textarea name="notes" rows="1" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g. Recently posted about struggling to scale their outbound motion"></textarea>
+        </div>
+        <div class="col-span-2 flex justify-end">
+          <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+            Save Lead
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Leads Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="text-base font-semibold text-slate-900">All Leads</h2>
+        <span id="lead-count" class="text-sm text-slate-500">0 leads</span>
+      </div>
+      <div id="leads-table">
+        <div class="py-12 text-center text-slate-400 text-sm">
+          No leads yet. Add your first lead above.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMPAIGNS PAGE -->
+  <div id="page-campaigns" class="page hidden p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">Campaigns</h1>
+        <p class="text-slate-500 text-sm mt-1">Your generated email sequences ready to send.</p>
+      </div>
+      <button onclick="exportCSV()"
+        class="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export CSV
+      </button>
+    </div>
+    <div id="campaigns-grid" class="grid gap-4">
+      <div class="py-12 text-center text-slate-400 text-sm bg-white rounded-2xl border border-slate-200">
+        No campaigns generated yet. Go to Leads and click Generate.
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div id="page-settings" class="page hidden p-8">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-900">Sender Settings</h1>
+      <p class="text-slate-500 text-sm mt-1">This information is used to personalize every email sequence.</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-xl">
+      <h2 class="text-base font-semibold text-slate-900 mb-5">Your Information</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Your Full Name *</label>
+          <input id="s-name" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Alex Johnson">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Your Company *</label>
+          <input id="s-company" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="GrowthStack Inc.">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Your Role</label>
+          <input id="s-role" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Head of Business Development">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">Value Proposition
+            <span class="text-slate-400 font-normal ml-1">— What problem do you solve?</span>
+          </label>
+          <textarea id="s-value" rows="3" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="We help B2B SaaS companies reduce churn by 30% with AI-powered customer success automation. Average customer saves 15 hours/week."></textarea>
+        </div>
+        <button onclick="saveSettings()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── EMAIL VIEWER PANEL ─────────────────────────────────────────────────── -->
+<div id="email-panel" class="fixed inset-y-0 right-0 w-[600px] bg-white shadow-2xl border-l border-slate-200 z-50 hidden">
+  <div class="flex flex-col h-full">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div>
+        <h2 class="font-semibold text-slate-900" id="panel-title">Email Sequence</h2>
+        <p class="text-xs text-slate-500 mt-0.5" id="panel-subtitle"></p>
+      </div>
+      <button onclick="closePanel()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Generating state -->
+    <div id="panel-generating" class="hidden flex-1 flex flex-col p-6">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-2 h-2 rounded-full bg-indigo-500 pulse-ring"></div>
+        <span class="text-sm font-medium text-indigo-600">Claude is writing your email sequence...</span>
+      </div>
+      <div id="streaming-text" class="flex-1 font-mono text-xs text-slate-600 bg-slate-50 rounded-xl p-4 overflow-auto leading-relaxed typing-cursor whitespace-pre-wrap"></div>
+    </div>
+
+    <!-- Emails content -->
+    <div id="panel-content" class="hidden flex-1 overflow-y-auto p-6 space-y-5">
+      <div id="strategy-box" class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800 hidden">
+        <div class="font-medium text-indigo-900 text-xs uppercase tracking-wide mb-1">Strategy Notes</div>
+        <div id="strategy-text"></div>
+      </div>
+      <div id="emails-container" class="space-y-5"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div id="overlay" class="fixed inset-0 bg-black/20 z-40 hidden" onclick="closePanel()"></div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+  <div class="bg-slate-900 text-white text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5">
+    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let leads = [];
+let generatingLeadId = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  showPage('leads');
+  loadStats();
+});
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById('page-' + name).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('bg-slate-800', 'text-white');
+    b.classList.add('text-slate-300');
+  });
+  const btn = document.getElementById('nav-' + name);
+  btn.classList.add('bg-slate-800', 'text-white');
+  btn.classList.remove('text-slate-300');
+
+  if (name === 'leads') loadLeads();
+  if (name === 'campaigns') loadCampaigns();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const s = await fetch('/api/stats').then(r => r.json());
+  document.getElementById('stat-leads').textContent = s.leads;
+  document.getElementById('stat-campaigns').textContent = s.campaigns;
+  document.getElementById('stat-emails').textContent = s.emails;
+}
+
+// ── Leads ─────────────────────────────────────────────────────────────────────
+async function loadLeads() {
+  leads = await fetch('/api/leads').then(r => r.json());
+  document.getElementById('lead-count').textContent = leads.length + ' lead' + (leads.length !== 1 ? 's' : '');
+  renderLeadsTable();
+}
+
+function renderLeadsTable() {
+  const el = document.getElementById('leads-table');
+  if (!leads.length) {
+    el.innerHTML = '<div class="py-12 text-center text-slate-400 text-sm">No leads yet. Add your first lead above.</div>';
+    return;
+  }
+
+  const rows = leads.map(l => `
+    <tr class="hover:bg-slate-50 fade-in">
+      <td class="px-6 py-4">
+        <div class="font-medium text-slate-900 text-sm">${l.first_name} ${l.last_name}</div>
+        <div class="text-xs text-slate-500 mt-0.5">${l.email || '—'}</div>
+      </td>
+      <td class="px-6 py-4">
+        <div class="text-sm text-slate-700">${l.company}</div>
+        <div class="text-xs text-slate-500">${l.role}</div>
+      </td>
+      <td class="px-6 py-4 text-sm text-slate-600">${l.industry}</td>
+      <td class="px-6 py-4">
+        ${l.has_campaign
+          ? '<span class="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1">✓ Generated</span>'
+          : '<span class="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-500 rounded-full px-2.5 py-1">Draft</span>'
+        }
+      </td>
+      <td class="px-6 py-4">
+        <div class="flex items-center gap-2">
+          ${l.has_campaign
+            ? `<button onclick="viewCampaign(${l.id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">View</button>`
+            : ''
+          }
+          <button onclick="generateSequence(${l.id})"
+            id="gen-btn-${l.id}"
+            class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+            ${l.has_campaign ? 'Regenerate' : 'Generate'}
+          </button>
+          <button onclick="deleteLead(${l.id})" class="text-xs text-slate-400 hover:text-red-500 transition-colors px-1">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-slate-100">
+          <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Name</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Company</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Industry</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">${rows}</tbody>
+    </table>
+  `;
+}
+
+async function submitLead(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd);
+  await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  e.target.reset();
+  toast('Lead saved!');
+  loadLeads();
+  loadStats();
+}
+
+async function deleteLead(id) {
+  if (!confirm('Delete this lead and its campaign?')) return;
+  await fetch('/api/leads/' + id, { method: 'DELETE' });
+  toast('Lead deleted');
+  loadLeads();
+  loadStats();
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generateSequence(leadId) {
+  const sender = getSenderSettings();
+  if (!sender.sender_name || !sender.sender_company) {
+    if (!confirm('Sender settings not configured. Go to Settings first?\n\nClick OK to go to Settings, Cancel to continue anyway.')) {
+      // continue anyway
+    } else {
+      showPage('settings');
+      return;
+    }
+  }
+
+  generatingLeadId = leadId;
+  const lead = leads.find(l => l.id === leadId);
+  openPanel();
+  setGenerating(true, `Generating sequence for ${lead.first_name} ${lead.last_name}...`);
+
+  const btn = document.getElementById('gen-btn-' + leadId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+  const streamEl = document.getElementById('streaming-text');
+  streamEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/generate/' + leadId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sender),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+
+        try {
+          const event = JSON.parse(json);
+          if (event.type === 'chunk') {
+            streamEl.textContent += event.text;
+            streamEl.scrollTop = streamEl.scrollHeight;
+          } else if (event.type === 'done') {
+            setGenerating(false);
+            renderEmails(event.data, lead);
+            loadLeads();
+            loadStats();
+            toast('Email sequence generated!');
+          } else if (event.type === 'error') {
+            setGenerating(false);
+            alert('Generation error: ' + event.message);
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    setGenerating(false);
+    alert('Request failed: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
+  }
+}
+
+async function viewCampaign(leadId) {
+  const lead = leads.find(l => l.id === leadId);
+  const campaign = await fetch('/api/campaigns/' + leadId).then(r => r.json());
+  openPanel();
+  setGenerating(false);
+  renderEmails(campaign, lead);
+}
+
+function renderEmails(data, lead) {
+  document.getElementById('panel-title').textContent = `${lead.first_name} ${lead.last_name} — Sequence`;
+  document.getElementById('panel-subtitle').textContent = `${lead.company} · ${lead.role}`;
+
+  const stratBox = document.getElementById('strategy-box');
+  const stratText = document.getElementById('strategy-text');
+  if (data.strategy_notes) {
+    stratText.textContent = data.strategy_notes;
+    stratBox.classList.remove('hidden');
+  } else {
+    stratBox.classList.add('hidden');
+  }
+
+  const emails = data.emails || [];
+  const labels = ['Day 1 — Cold Outreach', 'Day 4 — Follow-Up', 'Day 9 — Break-Up'];
+  const colors = ['indigo', 'violet', 'slate'];
+
+  document.getElementById('emails-container').innerHTML = emails.map((email, i) => `
+    <div class="border border-slate-200 rounded-xl overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-${colors[i] || 'slate'}-100 text-${colors[i] || 'slate'}-700 text-xs font-bold flex items-center justify-center">${i + 1}</span>
+          <span class="text-xs font-medium text-slate-600">${labels[i] || 'Email ' + (i+1)}</span>
+        </div>
+        <button onclick="copyEmail(this, ${i})" data-email='${JSON.stringify(email).replace(/'/g, "&apos;")}' class="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors">Copy</button>
+      </div>
+      <div class="p-4">
+        <div class="text-xs font-medium text-slate-500 mb-1">SUBJECT</div>
+        <div class="text-sm font-semibold text-slate-900 mb-4">${escHtml(email.subject)}</div>
+        <div class="text-xs font-medium text-slate-500 mb-1">BODY</div>
+        <div class="text-sm text-slate-700 leading-relaxed whitespace-pre-line">${escHtml(email.body)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('panel-content').classList.remove('hidden');
+}
+
+function copyEmail(btn, idx) {
+  const email = JSON.parse(btn.getAttribute('data-email').replace(/&apos;/g, "'"));
+  const text = `Subject: ${email.subject}\n\n${email.body}`;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// ── Campaigns ─────────────────────────────────────────────────────────────────
+async function loadCampaigns() {
+  const campaigns = await fetch('/api/campaigns').then(r => r.json());
+  const el = document.getElementById('campaigns-grid');
+
+  if (!campaigns.length) {
+    el.innerHTML = '<div class="py-12 text-center text-slate-400 text-sm bg-white rounded-2xl border border-slate-200">No campaigns generated yet. Go to Leads and click Generate.</div>';
+    return;
+  }
+
+  el.innerHTML = campaigns.map(c => `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 fade-in">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <div class="font-semibold text-slate-900">${c.first_name} ${c.last_name}</div>
+          <div class="text-sm text-slate-500">${c.company} · ${c.role}</div>
+        </div>
+        <span class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1">3 emails</span>
+      </div>
+      <div class="space-y-2">
+        ${(c.emails || []).map((email, i) => `
+          <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+            <span class="text-xs font-bold text-slate-400 mt-0.5 min-w-[24px]">E${i+1}</span>
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-slate-800 truncate">${escHtml(email.subject)}</div>
+              <div class="text-xs text-slate-500 mt-0.5 line-clamp-1">${escHtml(email.body.slice(0, 100))}…</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <button onclick="viewCampaignFromId(${c.lead_id})" class="mt-4 w-full text-sm text-indigo-600 hover:text-indigo-800 font-medium py-2 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
+        View Full Sequence
+      </button>
+    </div>
+  `).join('');
+}
+
+async function viewCampaignFromId(leadId) {
+  const campaign = await fetch('/api/campaigns/' + leadId).then(r => r.json());
+  const fakeLead = { first_name: campaign.first_name, last_name: campaign.last_name, company: campaign.company, role: campaign.role };
+  openPanel();
+  setGenerating(false);
+  renderEmails(campaign, fakeLead);
+}
+
+function exportCSV() {
+  window.location.href = '/api/export';
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function getSenderSettings() {
+  return {
+    sender_name: localStorage.getItem('s_name') || '',
+    sender_company: localStorage.getItem('s_company') || '',
+    sender_role: localStorage.getItem('s_role') || '',
+    sender_value_prop: localStorage.getItem('s_value') || '',
+  };
+}
+
+function loadSettings() {
+  document.getElementById('s-name').value = localStorage.getItem('s_name') || '';
+  document.getElementById('s-company').value = localStorage.getItem('s_company') || '';
+  document.getElementById('s-role').value = localStorage.getItem('s_role') || '';
+  document.getElementById('s-value').value = localStorage.getItem('s_value') || '';
+}
+
+function saveSettings() {
+  localStorage.setItem('s_name', document.getElementById('s-name').value);
+  localStorage.setItem('s_company', document.getElementById('s-company').value);
+  localStorage.setItem('s_role', document.getElementById('s-role').value);
+  localStorage.setItem('s_value', document.getElementById('s-value').value);
+  toast('Settings saved!');
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+function openPanel() {
+  const panel = document.getElementById('email-panel');
+  const overlay = document.getElementById('overlay');
+  panel.classList.remove('hidden');
+  panel.classList.add('slide-in');
+  overlay.classList.remove('hidden');
+}
+
+function closePanel() {
+  document.getElementById('email-panel').classList.add('hidden');
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('panel-generating').classList.add('hidden');
+  document.getElementById('panel-content').classList.add('hidden');
+}
+
+function setGenerating(isGenerating, subtitle = '') {
+  document.getElementById('panel-generating').classList.toggle('hidden', !isGenerating);
+  document.getElementById('panel-content').classList.toggle('hidden', isGenerating);
+  if (subtitle) document.getElementById('panel-subtitle').textContent = subtitle;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 2800);
+}
+</script>
+</body>
+</html>
