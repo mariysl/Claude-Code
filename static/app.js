@@ -1,577 +1,702 @@
-/* ── Example presets ──────────────────────────────────────────────────── */
-const EXAMPLES = {
-  plan_launch: `Plan a product launch for our new B2B SaaS analytics tool launching in 60 days. We need:
-- A full action plan with tasks, owners, and priorities
-- A launch week meeting agenda
-- Draft announcement emails to prospects and existing customers
-- A social media campaign for LinkedIn and Twitter`,
+/* ══════════════════════════════════════════════════════════════
+   Budget Bestie — app.js
+   ══════════════════════════════════════════════════════════════ */
 
-  sales_email: `Create a sales email campaign to reach out to potential enterprise clients for our cloud security product.
-- Draft a cold outreach email (persuasive tone)
-- Draft a follow-up email for non-responders (friendly tone)
-- Draft a meeting request email (formal tone)
-Target audience: CTOs and CISOs at companies with 500+ employees`,
-
-  roi_analysis: `Calculate the ROI for a proposed marketing campaign:
-- Investment: $75,000
-- Projected revenue generated: $280,000
-- Campaign duration: 6 months
-- Customer acquisition cost: $250 per customer
-- Average customer lifetime value: $3,200
-
-Also calculate our break-even point if fixed costs are $45,000 and each unit sells for $120 with $35 variable cost.`,
-
-  onboarding: `Create a complete new employee onboarding process for a sales representative joining our team:
-- Day 1 checklist (HR, IT setup, introductions)
-- Week 1 training SOP (product knowledge, CRM setup, sales process)
-- 30-day action plan with milestones
-- Draft a welcome email from the hiring manager`,
-
-  meeting: `Set up a weekly marketing team standup meeting:
-- 45-minute agenda for a team of 6
-- Cover: campaign updates, metrics review, blockers, upcoming launches
-- Create a report template for weekly marketing metrics
-- Draft a recurring meeting invite email`,
-
-  social: `Create a social media campaign to announce our company's Series A funding of $12M.
-Generate posts for LinkedIn, Twitter/X, and Instagram with appropriate tone and hashtags for each platform.`,
-
-  sop: `Write a standard operating procedure for our customer support team to handle refund requests.
-The process should cover: receiving the request, verification, approval workflow, processing, and follow-up communication.
-Include a checklist and draft the email templates for approved and denied refunds.`
+// ── Constants ─────────────────────────────────────────────────────────────
+const CATEGORY_COLORS = {
+  "Bills & Rent":      "#f87171",
+  "Groceries & Food":  "#fb923c",
+  "Going Out & Fun":   "#60a5fa",
+  "Shopping & Beauty": "#f472b6",
+  "Emergency Fund":    "#34d399",
+  "Savings":           "#fbbf24",
+  "Other":             "#c084fc"
 };
 
-/* ── State ────────────────────────────────────────────────────────────── */
-let isRunning = false;
-let toolProgressMap = {}; // tool_name -> element
+const CATEGORY_ICONS = {
+  "Bills & Rent":      "🏠",
+  "Groceries & Food":  "🛒",
+  "Going Out & Fun":   "🎉",
+  "Shopping & Beauty": "💄",
+  "Emergency Fund":    "🚨",
+  "Savings":           "💰",
+  "Other":             "📦"
+};
 
-/* ── Setup ────────────────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.getElementById('processInput');
-  const charCount = document.getElementById('charCount');
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  transactions: [],
+  budgets: {},
+  income: 4000,
+  isDemo: true,
+  bankConnected: false,
+  bankName: null,
+  plaidConfigured: false,
+  charts: { donut: null, bar: null }
+};
 
-  input.addEventListener('input', () => {
-    const len = input.value.length;
-    charCount.textContent = `${len} / 2000`;
-    if (len > 2000) input.value = input.value.slice(0, 2000);
-  });
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', initApp);
 
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runAutomation();
-  });
-});
-
-function setExample(key) {
-  // Update active nav button
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-
-  if (!key) {
-    document.getElementById('processInput').value = '';
-    document.getElementById('charCount').textContent = '0 / 2000';
-    return;
+async function initApp() {
+  try {
+    await checkStatus();
+    await loadBudget();
+    await loadTransactions();
+    renderDashboard();
+    renderBankTab();
+    populateBudgetForm();
+  } catch (e) {
+    console.error('Init error:', e);
   }
-
-  const text = EXAMPLES[key] || '';
-  const input = document.getElementById('processInput');
-  input.value = text;
-  document.getElementById('charCount').textContent = `${text.length} / 2000`;
-  input.focus();
 }
 
-/* ── Main automation function ─────────────────────────────────────────── */
-async function runAutomation() {
-  if (isRunning) return;
+async function checkStatus() {
+  try {
+    const data = await apiGet('/api/status');
+    state.bankConnected   = data.bank_connected;
+    state.bankName        = data.bank_name;
+    state.plaidConfigured = data.plaid_configured;
+    state.aiConfigured    = data.ai_configured;
 
-  const input = document.getElementById('processInput');
-  const message = input.value.trim();
-  if (!message) {
-    input.focus();
+    const pill = document.getElementById('connectionPill');
+    if (state.bankConnected) {
+      pill.textContent = `🏦 ${state.bankName || 'Bank Connected'}`;
+      pill.className = 'status-pill connected';
+    } else {
+      pill.textContent = '📊 Demo Mode';
+      pill.className = 'status-pill demo';
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+async function loadBudget() {
+  const data = await apiGet('/api/budget');
+  state.income  = data.income;
+  state.budgets = data.budgets;
+}
+
+async function loadTransactions() {
+  const data = await apiGet('/api/plaid/transactions');
+  state.transactions = data.transactions || [];
+  state.isDemo       = data.demo !== false;
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + tabName);
+  });
+}
+
+// ── Dashboard rendering ────────────────────────────────────────────────────
+function renderDashboard() {
+  const spending = computeSpending();
+  const totalSpent = Object.values(spending).reduce((a, b) => a + b, 0);
+  const remaining  = state.income - totalSpent;
+
+  // Summary cards
+  document.getElementById('summaryIncome').textContent    = formatCurrency(state.income);
+  document.getElementById('summarySpent').textContent     = formatCurrency(totalSpent);
+  document.getElementById('summaryRemaining').textContent = formatCurrency(remaining);
+
+  renderDonutChart(spending);
+  renderBarChart(spending, state.budgets);
+  renderCategoryProgress(spending, state.budgets);
+  renderTransactions(state.transactions);
+}
+
+function computeSpending() {
+  const spending = {};
+  for (const t of state.transactions) {
+    const cat = t.category || 'Other';
+    spending[cat] = (spending[cat] || 0) + parseFloat(t.amount);
+  }
+  return spending;
+}
+
+// ── Donut Chart ────────────────────────────────────────────────────────────
+function renderDonutChart(spending) {
+  const categories = Object.keys(spending).filter(c => spending[c] > 0);
+  if (!categories.length) return;
+
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  if (state.charts.donut) state.charts.donut.destroy();
+
+  const total = Object.values(spending).reduce((a, b) => a + b, 0);
+
+  const centerTextPlugin = {
+    id: 'centerText',
+    beforeDraw(chart) {
+      const { ctx: c, chartArea: { top, bottom, left, right } } = chart;
+      c.save();
+      c.font = 'bold 18px Poppins, sans-serif';
+      c.fillStyle = '#db2777';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      const cx = (left + right) / 2;
+      const cy = (top + bottom) / 2;
+      c.fillText(formatCurrency(total), cx, cy - 10);
+      c.font = '12px Poppins, sans-serif';
+      c.fillStyle = '#6b7280';
+      c.fillText('total spent', cx, cy + 14);
+      c.restore();
+    }
+  };
+
+  state.charts.donut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: categories,
+      datasets: [{
+        data: categories.map(c => spending[c]),
+        backgroundColor: categories.map(c => CATEGORY_COLORS[c] || '#c084fc'),
+        borderWidth: 3,
+        borderColor: '#fff',
+        hoverBorderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { usePointStyle: true, padding: 12, font: { family: 'Poppins', size: 11 } }
+        },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.label}: ${formatCurrency(ctx.parsed)}` }
+        }
+      }
+    },
+    plugins: [centerTextPlugin]
+  });
+}
+
+// ── Bar Chart ──────────────────────────────────────────────────────────────
+function renderBarChart(spending, budgets) {
+  const categories = Object.keys(budgets);
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (state.charts.bar) state.charts.bar.destroy();
+
+  state.charts.bar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: categories.map(c => `${CATEGORY_ICONS[c] || ''} ${c}`),
+      datasets: [
+        {
+          label: 'Spent',
+          data: categories.map(c => spending[c] || 0),
+          backgroundColor: categories.map(c => (CATEGORY_COLORS[c] || '#c084fc') + 'cc'),
+          borderRadius: 6
+        },
+        {
+          label: 'Budget',
+          data: categories.map(c => budgets[c]?.limit || 0),
+          backgroundColor: '#f9a8d455',
+          borderColor: '#f9a8d4',
+          borderWidth: 2,
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { font: { family: 'Poppins', size: 11 } } },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatCurrency(ctx.parsed.x)}` }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#fce7f3' },
+          ticks: { callback: v => '$' + v, font: { family: 'Poppins', size: 11 } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { family: 'Poppins', size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+// ── Category Progress Bars ─────────────────────────────────────────────────
+function renderCategoryProgress(spending, budgets) {
+  const container = document.getElementById('categoryProgress');
+  if (!container) return;
+
+  const html = Object.entries(budgets).map(([cat, info]) => {
+    const spent = spending[cat] || 0;
+    const limit = info.limit || 0;
+    const pct   = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+    const over  = spent > limit;
+    const color = info.color || CATEGORY_COLORS[cat] || '#c084fc';
+    const icon  = info.icon  || CATEGORY_ICONS[cat]  || '📦';
+
+    return `
+      <div class="progress-item">
+        <div class="progress-header">
+          <div class="progress-label">
+            <span class="progress-icon">${icon}</span>
+            <span>${esc(cat)}</span>
+          </div>
+          <div class="progress-amounts">
+            <strong>${formatCurrency(spent)}</strong> / ${formatCurrency(limit)}
+          </div>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill ${over ? 'over' : ''}"
+               style="width:${pct.toFixed(1)}%; background:${over ? '#f87171' : color}">
+          </div>
+        </div>
+        <div class="progress-pct ${over ? 'over' : ''}">
+          ${over ? '⚠️ ' : ''}${pct.toFixed(0)}% used${over ? ' — over budget!' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">No budget categories found</div></div>';
+}
+
+// ── Transactions List ──────────────────────────────────────────────────────
+function renderTransactions(transactions) {
+  const container = document.getElementById('transactionList');
+  if (!container) return;
+
+  const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+
+  if (!recent.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💸</div><div class="empty-state-text">No transactions yet</div></div>';
     return;
   }
 
-  isRunning = true;
-  toolProgressMap = {};
+  const rows = recent.map(t => {
+    const color = CATEGORY_COLORS[t.category] || '#c084fc';
+    const icon  = CATEGORY_ICONS[t.category]  || '📦';
+    return `
+      <tr class="transaction-row">
+        <td>
+          <div class="txn-name-cell">
+            <div class="txn-color-bar" style="background:${color}"></div>
+            <div>
+              <span class="txn-name">${esc(t.name)}</span>
+              <span class="txn-merchant">${esc(t.merchant || '')}</span>
+            </div>
+          </div>
+        </td>
+        <td class="txn-amount">${formatCurrency(t.amount)}</td>
+        <td class="txn-date">${formatDate(t.date)}</td>
+        <td><span class="category-badge" style="background:${color}22; color:${color}">${icon} ${esc(t.category)}</span></td>
+      </tr>
+    `;
+  }).join('');
 
-  // Reset UI
-  const outputSection = document.getElementById('outputSection');
-  const statusBar = document.getElementById('statusBar');
-  const statusText = document.getElementById('statusText');
-  const responseText = document.getElementById('responseText');
-  const artifactsGrid = document.getElementById('artifactsGrid');
-  const runBtn = document.getElementById('runBtn');
+  container.innerHTML = `
+    <table class="transaction-table">
+      <thead>
+        <tr>
+          <th>Transaction</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
 
-  outputSection.style.display = 'block';
-  statusBar.className = 'status-bar';
-  statusText.textContent = 'Connecting to Claude...';
-  responseText.style.display = 'none';
-  responseText.innerHTML = '';
-  artifactsGrid.innerHTML = '';
-  runBtn.disabled = true;
-  runBtn.innerHTML = '<span class="tool-spinner"></span> Running...';
+// ── Bank Tab ───────────────────────────────────────────────────────────────
+function renderBankTab() {
+  const container = document.getElementById('bankContent');
+  if (!container) return;
 
-  // Insert tool progress container before artifacts
-  const progressContainer = document.createElement('div');
-  progressContainer.className = 'tool-progress';
-  progressContainer.id = 'toolProgress';
-  artifactsGrid.before(progressContainer);
+  if (state.bankConnected) {
+    container.innerHTML = `
+      <div class="bank-status-icon">🏦</div>
+      <div class="bank-status-text">Connected!</div>
+      <div class="bank-info">
+        <div class="bank-info-label">Connected to</div>
+        <div class="bank-info-name">${esc(state.bankName || 'Your Bank')} ✅</div>
+      </div>
+      <div class="bank-btns">
+        <button class="btn btn-primary" onclick="syncTransactions()">🔄 Sync Transactions</button>
+        <button class="btn btn-outline" onclick="disconnectBank()">Disconnect</button>
+      </div>
+    `;
+    return;
+  }
+
+  if (!state.plaidConfigured) {
+    container.innerHTML = `
+      <div class="bank-status-icon">📊</div>
+      <div class="bank-status-text">Running in Demo Mode</div>
+      <div class="demo-notice">
+        💡 Add <strong>PLAID_CLIENT_ID</strong> and <strong>PLAID_SECRET</strong> environment variables to connect your real bank account.
+      </div>
+      <div class="bank-status-sub">
+        In demo mode, Budget Bestie uses sample transactions so you can explore all features right away.
+        Your data is never stored or shared.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="bank-status-icon">🔐</div>
+    <div class="bank-status-text">Connect Your Bank Securely</div>
+    <div class="bank-status-sub">
+      Connect your bank account using Plaid's secure, bank-level encryption. Budget Bestie never stores your login credentials.
+    </div>
+    <button class="btn btn-primary" onclick="initPlaidLink()" id="plaidBtn">🏦 Connect Your Bank</button>
+  `;
+}
+
+async function initPlaidLink() {
+  const btn = document.getElementById('plaidBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
 
   try {
-    const response = await fetch('/automate', {
+    const data = await apiPost('/api/plaid/create-link-token', {});
+    if (data.demo || !data.link_token) {
+      showToast('Plaid not configured — running in demo mode', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '🏦 Connect Your Bank'; }
+      return;
+    }
+    const handler = Plaid.create({
+      token: data.link_token,
+      onSuccess: async (publicToken, metadata) => {
+        const res = await apiPost('/api/plaid/exchange-token', {
+          public_token: publicToken,
+          institution_name: metadata.institution?.name || 'Your Bank'
+        });
+        if (res.ok) {
+          await checkStatus();
+          await loadTransactions();
+          renderDashboard();
+          renderBankTab();
+          showToast(`${res.bank_name} connected! 🎉`, 'success');
+        } else {
+          showToast('Connection failed: ' + (res.error || 'Unknown'), 'error');
+        }
+      },
+      onExit: () => {
+        if (btn) { btn.disabled = false; btn.textContent = '🏦 Connect Your Bank'; }
+      }
+    });
+    handler.open();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🏦 Connect Your Bank'; }
+  }
+}
+
+async function syncTransactions() {
+  showToast('Syncing transactions...', '');
+  await loadTransactions();
+  renderDashboard();
+  showToast('Transactions synced! 💕', 'success');
+}
+
+function disconnectBank() {
+  // Reset state (in a real app you'd also revoke the Plaid access token)
+  state.bankConnected = false;
+  state.bankName = null;
+  renderBankTab();
+  showToast('Bank disconnected', '');
+}
+
+// ── AI Insights (streaming) ────────────────────────────────────────────────
+async function getInsights() {
+  const btn    = document.getElementById('getInsightsBtn');
+  const output = document.getElementById('insightsOutput');
+  btn.disabled = true;
+  btn.textContent = '✨ Getting insights...';
+  output.style.display = 'block';
+  output.innerHTML = '<div class="loading-text">Budget Bestie is thinking... 💕</div>';
+
+  try {
+    const response = await fetch('/api/ai/insights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ transactions: state.transactions })
     });
 
-    const reader = response.body.getReader();
+    if (!response.ok) throw new Error('Server error ' + response.status);
+
+    const reader  = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let fullText = '';
+    output.innerHTML = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
-
-      let currentEvent = null;
-      let currentData = null;
-
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
       for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          currentEvent = line.slice(7).trim();
-        } else if (line.startsWith('data: ')) {
-          currentData = line.slice(6).trim();
-          if (currentEvent && currentData) {
-            handleSSEEvent(currentEvent, currentData, statusText, statusBar, responseText);
-            currentEvent = null;
-            currentData = null;
-          }
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data.trim() === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            fullText += parsed.text;
+            output.innerHTML = markdownToHtml(fullText);
+          } catch { /* ignore partial JSON */ }
         }
       }
     }
-  } catch (err) {
-    statusBar.className = 'status-bar error';
-    statusText.textContent = `Error: ${err.message}`;
+    if (!fullText) output.innerHTML = '<p style="color:var(--gray-500)">No insights available yet.</p>';
+  } catch (e) {
+    output.innerHTML = `<p style="color:#dc2626">Error getting insights: ${esc(e.message)}</p>`;
   } finally {
-    isRunning = false;
-    runBtn.disabled = false;
-    runBtn.innerHTML = '<span class="run-icon">▶</span> Automate';
+    btn.disabled = false;
+    btn.textContent = '✨ Get My Insights';
   }
 }
 
-function handleSSEEvent(event, dataStr, statusText, statusBar, responseText) {
-  let data;
-  try { data = JSON.parse(dataStr); } catch { return; }
+// ── AI Budget Suggestion ───────────────────────────────────────────────────
+async function suggestBudget() {
+  const btn      = document.getElementById('suggestBtn');
+  const output   = document.getElementById('suggestionOutput');
+  const incomeEl = document.getElementById('suggestIncome');
 
-  const progressContainer = document.getElementById('toolProgress');
+  const income = parseFloat(incomeEl.value) || state.income;
+  const priorities = [...document.querySelectorAll('input[name="priority"]:checked')].map(el => el.value);
 
-  switch (event) {
-    case 'start':
-      statusText.textContent = data.message;
-      break;
+  btn.disabled = true;
+  btn.textContent = '💡 Building your budget...';
+  output.style.display = 'block';
+  output.innerHTML = '<div class="loading-text">Building your perfect budget... 💕</div>';
 
-    case 'text_delta':
-      responseText.style.display = 'block';
-      responseText.textContent += data.text;
-      break;
-
-    case 'tool_start': {
-      statusText.textContent = data.message;
-      // Add progress item
-      const item = document.createElement('div');
-      item.className = 'tool-progress-item';
-      item.id = `progress-${data.tool}`;
-      item.innerHTML = `<div class="tool-spinner"></div><span>${data.message}</span>`;
-      progressContainer.appendChild(item);
-      toolProgressMap[data.tool] = item;
-      break;
+  try {
+    const data = await apiPost('/api/ai/suggest-budget', { income, priorities });
+    if (data.error || !data.suggestion) {
+      output.innerHTML = `<p style="color:#dc2626">${esc(data.error || 'No suggestion available')}</p>`;
+      return;
     }
 
-    case 'tool_executing': {
-      const item = toolProgressMap[data.tool];
-      if (item) {
-        const span = item.querySelector('span');
-        if (span) span.textContent = data.message;
-      }
-      statusText.textContent = data.message;
-      break;
-    }
+    const suggestion = data.suggestion;
+    const itemsHtml = Object.entries(suggestion).map(([cat, amount]) => {
+      const icon  = CATEGORY_ICONS[cat]  || '📦';
+      const color = CATEGORY_COLORS[cat] || '#c084fc';
+      return `
+        <div class="suggestion-item">
+          <div class="suggestion-item-name" style="color:${color}">${icon} ${esc(cat)}</div>
+          <div class="suggestion-item-amount">${formatCurrency(amount)}</div>
+        </div>
+      `;
+    }).join('');
 
-    case 'tool_done': {
-      const item = toolProgressMap[data.tool];
-      if (item) {
-        item.innerHTML = `<span class="tool-check">✓</span><span style="color:var(--text-dim)">${data.message}</span>`;
-      }
-      statusText.textContent = data.message;
-      break;
-    }
+    const total = Object.values(suggestion).reduce((a, b) => a + b, 0);
 
-    case 'artifact':
-      renderArtifact(data.data, data.tool);
-      break;
-
-    case 'complete':
-      statusBar.className = 'status-bar done';
-      statusText.textContent = data.artifacts_count > 0
-        ? `Done — ${data.artifacts_count} artifact${data.artifacts_count !== 1 ? 's' : ''} created`
-        : 'Done';
-      break;
-  }
-}
-
-/* ── Artifact rendering ───────────────────────────────────────────────── */
-function renderArtifact(data, toolName) {
-  const grid = document.getElementById('artifactsGrid');
-  let el;
-
-  switch (data.type) {
-    case 'email':       el = renderEmail(data); break;
-    case 'report':      el = renderReport(data); break;
-    case 'spreadsheet': el = renderSpreadsheet(data); break;
-    case 'analysis':    el = renderAnalysis(data); break;
-    case 'action_plan': el = renderActionPlan(data); break;
-    case 'social_posts':el = renderSocialPosts(data); break;
-    case 'meeting_agenda': el = renderMeetingAgenda(data); break;
-    case 'calculation': el = renderCalculation(data); break;
-    case 'checklist':   el = renderChecklist(data); break;
-    case 'extracted_info': el = renderExtractedInfo(data); break;
-    default: return;
-  }
-
-  grid.appendChild(el);
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-/* ── Email ────────────────────────────────────────────────────────────── */
-function renderEmail(d) {
-  const wrap = artifact('email', '✉️', `Email to ${esc(d.to)}`);
-  const body = wrap.querySelector('.artifact-body');
-
-  body.innerHTML = `
-    <div class="email-meta">
-      <div class="email-field"><span class="email-field-label">To:</span><span class="email-field-value">${esc(d.to)}</span></div>
-      <div class="email-field"><span class="email-field-label">Subject:</span><span class="email-field-value">${esc(d.subject)}</span></div>
-      <div class="email-field"><span class="email-field-label">Tone:</span><span class="tone-badge tone-${esc(d.tone)}">${esc(d.tone)}</span></div>
-    </div>
-    <div class="email-body-text">${esc(d.body)}</div>
-  `;
-  addCopyBtn(wrap, d.body, 'Email body copied!');
-  return wrap;
-}
-
-/* ── Report ───────────────────────────────────────────────────────────── */
-function renderReport(d) {
-  const wrap = artifact('report', '📄', esc(d.title));
-  const body = wrap.querySelector('.artifact-body');
-
-  const sectionsHtml = d.sections.map(s => `
-    <div class="report-section">
-      <div class="report-section-heading">${esc(s.heading)}</div>
-      <div class="report-section-content">${esc(s.content)}</div>
-    </div>
-  `).join('');
-
-  body.innerHTML = `
-    <div class="report-summary">${esc(d.summary)}</div>
-    ${sectionsHtml}
-  `;
-
-  const fullText = `# ${d.title}\n\n## Summary\n${d.summary}\n\n` +
-    d.sections.map(s => `## ${s.heading}\n${s.content}`).join('\n\n');
-  addCopyBtn(wrap, fullText, 'Report copied!');
-  return wrap;
-}
-
-/* ── Spreadsheet ──────────────────────────────────────────────────────── */
-function renderSpreadsheet(d) {
-  const wrap = artifact('spreadsheet', '📊', `${esc(d.filename)}.csv`);
-  const body = wrap.querySelector('.artifact-body');
-
-  const headerHtml = d.headers.map(h => `<th>${esc(String(h))}</th>`).join('');
-  const rowsHtml = d.rows.map(row =>
-    `<tr>${row.map(cell => `<td>${esc(String(cell))}</td>`).join('')}</tr>`
-  ).join('');
-
-  body.innerHTML = `
-    <div class="spreadsheet-desc">${esc(d.description)}</div>
-    <div class="spreadsheet-table-wrap">
-      <table class="spreadsheet-table">
-        <thead><tr>${headerHtml}</tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>
-    <button class="csv-download" onclick="downloadCSV(this)">⬇ Download CSV</button>
-  `;
-
-  // Store CSV for download
-  body.querySelector('.csv-download')._csv = d.csv_content;
-  body.querySelector('.csv-download')._filename = d.filename;
-  return wrap;
-}
-
-function downloadCSV(btn) {
-  const csv = btn._csv;
-  const filename = btn._filename + '.csv';
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ── Analysis ─────────────────────────────────────────────────────────── */
-function renderAnalysis(d) {
-  const wrap = artifact('analysis', '📈', `Analysis: ${esc(d.description)}`);
-  const body = wrap.querySelector('.artifact-body');
-
-  let statsHtml = '';
-  if (d.statistics && Object.keys(d.statistics).length) {
-    const s = d.statistics;
-    statsHtml = `
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-value">${s.count}</div><div class="stat-label">Count</div></div>
-        <div class="stat-card"><div class="stat-value">${s.mean}</div><div class="stat-label">Mean</div></div>
-        <div class="stat-card"><div class="stat-value">${s.median}</div><div class="stat-label">Median</div></div>
-        <div class="stat-card"><div class="stat-value">${s.std_dev}</div><div class="stat-label">Std Dev</div></div>
-      </div>
+    output.innerHTML = `
+      <h4>💡 Budget Bestie's Suggested Budget for ${formatCurrency(income)}/mo</h4>
+      <div class="suggestion-grid">${itemsHtml}</div>
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px">Total allocated: ${formatCurrency(total)} / ${formatCurrency(income)}</p>
+      <button class="btn btn-success btn-sm" onclick='applyBudgetSuggestion(${JSON.stringify(suggestion)}, ${income})'>✅ Apply This Budget</button>
+      ${data.note ? `<p style="font-size:12px;color:var(--gray-400);margin-top:8px">${esc(data.note)}</p>` : ''}
     `;
+  } catch (e) {
+    output.innerHTML = `<p style="color:#dc2626">Error: ${esc(e.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💡 Build My Budget';
+  }
+}
+
+async function applyBudgetSuggestion(suggestion, income) {
+  // Update state
+  if (income) state.income = income;
+  for (const [cat, amount] of Object.entries(suggestion)) {
+    if (state.budgets[cat]) state.budgets[cat].limit = amount;
   }
 
-  let catsHtml = '';
-  if (d.categories) {
-    const maxVal = Math.max(...d.categories.map(c => c.value));
-    catsHtml = `<div class="category-bars">` +
-      d.categories.map(c => `
-        <div class="category-row">
-          <div class="category-label-row">
-            <span>${esc(c.name)}</span>
-            <span>${c.value} (${c.percentage}%)</span>
+  // Save to backend
+  const budgetMap = {};
+  for (const [cat, amount] of Object.entries(suggestion)) budgetMap[cat] = amount;
+  await apiPost('/api/budget', { income: income || state.income, budgets: budgetMap });
+
+  // Refresh UI
+  populateBudgetForm();
+  renderDashboard();
+  showToast('Budget applied! 💕', 'success');
+  switchTab('budget');
+}
+
+// ── Check Purchase ─────────────────────────────────────────────────────────
+async function checkPurchase() {
+  const btn      = document.getElementById('checkBtn');
+  const itemName = document.getElementById('purchaseItem').value.trim();
+  const amount   = parseFloat(document.getElementById('purchaseAmount').value) || 0;
+  const category = document.getElementById('purchaseCategory').value;
+  const result   = document.getElementById('purchaseResult');
+
+  if (!itemName || amount <= 0) {
+    showToast('Please fill in all fields 💕', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '🔍 Checking...';
+  result.style.display = 'none';
+
+  try {
+    const data = await apiPost('/api/ai/warning', { category, amount, item_name: itemName });
+    const safe = !data.warning;
+    const pct  = Math.min(data.percentage, 100);
+    const color = CATEGORY_COLORS[category] || '#c084fc';
+
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="purchase-result-card ${safe ? 'safe' : 'warning'}">
+        <div class="purchase-result-title">${safe ? '✅ Good to Go!' : '⚠️ Budget Alert!'}</div>
+        <div class="purchase-result-message">${esc(data.message)}</div>
+        <div class="purchase-stats">
+          <div class="purchase-stat">
+            <div class="purchase-stat-label">Current Spent</div>
+            <div class="purchase-stat-value">${formatCurrency(data.current_spending)}</div>
           </div>
-          <div class="category-bar-bg">
-            <div class="category-bar-fill" style="width:${(c.value/maxVal*100).toFixed(1)}%"></div>
+          <div class="purchase-stat">
+            <div class="purchase-stat-label">This Purchase</div>
+            <div class="purchase-stat-value">+${formatCurrency(amount)}</div>
+          </div>
+          <div class="purchase-stat">
+            <div class="purchase-stat-label">New Total</div>
+            <div class="purchase-stat-value">${formatCurrency(data.new_total)}</div>
+          </div>
+          <div class="purchase-stat">
+            <div class="purchase-stat-label">Budget Limit</div>
+            <div class="purchase-stat-value">${formatCurrency(data.budget_limit)}</div>
           </div>
         </div>
-      `).join('') +
-    `</div>`;
-  }
-
-  let insightsHtml = '';
-  if (d.insights && d.insights.length) {
-    insightsHtml = `<div class="analysis-insights">` +
-      d.insights.map(i => `<div class="insight-item">${esc(i)}</div>`).join('') +
-    `</div>`;
-  }
-
-  body.innerHTML = statsHtml + catsHtml + insightsHtml;
-  return wrap;
-}
-
-/* ── Action Plan ──────────────────────────────────────────────────────── */
-function renderActionPlan(d) {
-  const wrap = artifact('action-plan', '🎯', esc(d.project_name));
-  const body = wrap.querySelector('.artifact-body');
-
-  const tasksHtml = d.tasks.map(t => {
-    const statusClass = 'status-' + (t.status || 'not started').replace(/\s+/g, '-');
-    const priorityClass = 'priority-' + (t.priority || 'medium');
-    return `
-      <tr>
-        <td>${esc(t.task)}</td>
-        <td>${t.owner ? esc(t.owner) : '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td>${t.deadline ? esc(t.deadline) : '<span style="color:var(--text-muted)">TBD</span>'}</td>
-        <td><span class="priority-badge ${priorityClass}">${esc(t.priority || 'medium')}</span></td>
-        <td><span class="status-pill ${statusClass}">${esc(t.status || 'not started')}</span></td>
-      </tr>
-    `;
-  }).join('');
-
-  body.innerHTML = `
-    <div class="plan-meta">
-      <span class="plan-badge">📋 ${esc(d.objective)}</span>
-      <span class="plan-badge">⏱ ${esc(d.timeline)}</span>
-    </div>
-    <div class="tasks-table-wrap">
-      <table class="tasks-table">
-        <thead><tr><th>Task</th><th>Owner</th><th>Deadline</th><th>Priority</th><th>Status</th></tr></thead>
-        <tbody>${tasksHtml}</tbody>
-      </table>
-    </div>
-  `;
-  return wrap;
-}
-
-/* ── Social Posts ─────────────────────────────────────────────────────── */
-function renderSocialPosts(d) {
-  const wrap = artifact('social', '📱', `Social: ${esc(d.topic.slice(0, 40))}...`);
-  const body = wrap.querySelector('.artifact-body');
-
-  const platformIcons = { LinkedIn: '💼', 'Twitter/X': '🐦', Instagram: '📸', Facebook: '👥' };
-
-  const postsHtml = d.posts.map(p => {
-    const icon = platformIcons[p.platform] || '📢';
-    const hashtagsHtml = p.hashtags
-      ? p.hashtags.map(h => `<span class="hashtag">#${esc(h.replace(/^#/, ''))}</span>`).join('')
-      : '';
-    return `
-      <div class="social-post">
-        <div class="social-platform">${icon} ${esc(p.platform)}</div>
-        <div class="social-content">${esc(p.content)}</div>
-        ${hashtagsHtml ? `<div class="social-hashtags">${hashtagsHtml}</div>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  body.innerHTML = `<div class="social-posts">${postsHtml}</div>`;
-
-  const allText = d.posts.map(p => `[${p.platform}]\n${p.content}${p.hashtags ? '\n' + p.hashtags.map(h => '#' + h.replace(/^#/,'')).join(' ') : ''}`).join('\n\n');
-  addCopyBtn(wrap, allText, 'Posts copied!');
-  return wrap;
-}
-
-/* ── Meeting Agenda ───────────────────────────────────────────────────── */
-function renderMeetingAgenda(d) {
-  const wrap = artifact('meeting', '📅', esc(d.meeting_title));
-  const body = wrap.querySelector('.artifact-body');
-
-  const objectivesHtml = d.objectives.map(o => `<div class="objective-item">${esc(o)}</div>`).join('');
-
-  let runningTime = 0;
-  const agendaHtml = d.agenda_items.map(item => {
-    const startMin = runningTime;
-    runningTime += item.duration_minutes;
-    const timeStr = `${item.duration_minutes}m`;
-    return `
-      <div class="agenda-item">
-        <div class="agenda-time">${timeStr}</div>
-        <div class="agenda-content">
-          <div class="agenda-item-title">${esc(item.item)}</div>
-          ${item.owner ? `<div class="agenda-item-owner">Lead: ${esc(item.owner)}</div>` : ''}
-          ${item.notes ? `<div class="step-details">${esc(item.notes)}</div>` : ''}
+        <div class="purchase-progress-label">
+          ${CATEGORY_ICONS[category] || '📦'} ${esc(category)} — ${data.percentage}% of budget used after purchase
+        </div>
+        <div class="purchase-progress-bg">
+          <div class="purchase-progress-fill"
+               style="width:${pct}%; background:${safe ? '#34d399' : '#f87171'}">
+          </div>
         </div>
       </div>
     `;
-  }).join('');
-
-  body.innerHTML = `
-    <div class="meeting-meta">
-      <div class="meeting-meta-item"><strong>When:</strong> ${esc(d.date_time || 'TBD')}</div>
-      <div class="meeting-meta-item"><strong>Duration:</strong> ${d.duration_minutes} min</div>
-      ${d.attendees && d.attendees.length ? `<div class="meeting-meta-item"><strong>Attendees:</strong> ${d.attendees.length}</div>` : ''}
-    </div>
-    <div class="objectives-list">
-      <div class="objectives-list-title">Objectives</div>
-      ${objectivesHtml}
-    </div>
-    <div class="agenda-items">${agendaHtml}</div>
-  `;
-  return wrap;
+  } catch (e) {
+    result.style.display = 'block';
+    result.innerHTML = `<p style="color:#dc2626;padding:12px">Error: ${esc(e.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Check It!';
+  }
 }
 
-/* ── Calculation ──────────────────────────────────────────────────────── */
-function renderCalculation(d) {
-  const wrap = artifact('calculation', '🧮', esc(d.calculation_type));
-  const body = wrap.querySelector('.artifact-body');
+// ── Budget Form ────────────────────────────────────────────────────────────
+function populateBudgetForm() {
+  const grid    = document.getElementById('budgetFormGrid');
+  const incomeI = document.getElementById('budgetIncome');
+  if (incomeI) incomeI.value = state.income;
+  if (!grid) return;
 
-  const resultFormatted = typeof d.result === 'number'
-    ? (Math.abs(d.result) >= 1000 ? d.result.toLocaleString() : d.result.toFixed(2))
-    : d.result;
-
-  const breakdownHtml = d.breakdown.map((line, i) => {
-    const parts = line.split(':');
-    const label = parts[0];
-    const val = parts.slice(1).join(':').trim();
+  grid.innerHTML = Object.entries(state.budgets).map(([cat, info]) => {
+    const color = info.color || CATEGORY_COLORS[cat] || '#c084fc';
+    const icon  = info.icon  || CATEGORY_ICONS[cat]  || '📦';
     return `
-      <div class="calc-line">
-        <span>${esc(label)}</span>
-        <span>${esc(val)}</span>
+      <div class="budget-form-item">
+        <div class="budget-form-item-label">
+          <div class="dot" style="background:${color}"></div>
+          <span>${icon} ${esc(cat)}</span>
+        </div>
+        <input
+          type="number"
+          class="form-input"
+          id="budget-${esc(cat)}"
+          value="${info.limit}"
+          min="0"
+          step="10"
+          placeholder="0"
+        />
       </div>
     `;
   }).join('');
-
-  body.innerHTML = `
-    <div class="calc-result">
-      <div class="calc-result-value">${esc(String(resultFormatted))}</div>
-      <div class="calc-result-label">${esc(d.calculation_type)}</div>
-    </div>
-    <div class="calc-formula">${esc(d.formula)}</div>
-    <div class="calc-breakdown">${breakdownHtml}</div>
-  `;
-  return wrap;
 }
 
-/* ── Checklist ────────────────────────────────────────────────────────── */
-function renderChecklist(d) {
-  const wrap = artifact('checklist', '✅', esc(d.title));
-  const body = wrap.querySelector('.artifact-body');
+async function saveBudget() {
+  const incomeEl = document.getElementById('budgetIncome');
+  const income   = parseFloat(incomeEl?.value) || state.income;
+  const budgets  = {};
 
-  const stepsHtml = d.steps.map(s => `
-    <div class="checklist-step">
-      <div class="step-number">${s.step_number}</div>
-      <div>
-        <div class="step-action">${esc(s.action)}</div>
-        ${s.details ? `<div class="step-details">${esc(s.details)}</div>` : ''}
-        ${s.responsible ? `<div class="step-responsible">👤 ${esc(s.responsible)}</div>` : ''}
-      </div>
-    </div>
-  `).join('');
+  for (const cat of Object.keys(state.budgets)) {
+    const el = document.getElementById(`budget-${cat}`);
+    if (el) budgets[cat] = parseFloat(el.value) || 0;
+  }
 
-  body.innerHTML = `
-    <div class="checklist-purpose">${esc(d.purpose)}</div>
-    <div class="checklist-steps">${stepsHtml}</div>
-    ${d.notes ? `<div class="checklist-notes"><strong>Notes:</strong> ${esc(d.notes)}</div>` : ''}
-  `;
-  return wrap;
+  try {
+    await apiPost('/api/budget', { income, budgets });
+    state.income = income;
+    for (const [cat, limit] of Object.entries(budgets)) {
+      if (state.budgets[cat]) state.budgets[cat].limit = limit;
+    }
+    renderDashboard();
+    showToast('Budget saved! 💾✨', 'success');
+  } catch (e) {
+    showToast('Error saving budget: ' + e.message, 'error');
+  }
 }
 
-/* ── Extracted Info ───────────────────────────────────────────────────── */
-function renderExtractedInfo(d) {
-  const wrap = artifact('extraction', '🔍', `Extracted: ${esc(d.extraction_type)}`);
-  const body = wrap.querySelector('.artifact-body');
+// ── Markdown → HTML ────────────────────────────────────────────────────────
+function markdownToHtml(text) {
+  let html = esc(text);
 
-  const itemsHtml = d.items.map(item => `
-    <div class="extracted-item">
-      <div class="extracted-category">${esc(item.category)}</div>
-      <div class="extracted-value">${esc(item.value)}</div>
-      ${item.context ? `<div class="extracted-context">${esc(item.context)}</div>` : ''}
-    </div>
-  `).join('');
+  // ## Headings
+  html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
 
-  body.innerHTML = `<div class="extracted-items">${itemsHtml}</div>`;
-  return wrap;
+  // **bold**
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Numbered lists  (must come before bullet list)
+  html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (match) => {
+    const items = match.trim().split('\n').map(l => `<li>${l.replace(/^\d+\. /, '')}</li>`).join('');
+    return `<ol>${items}</ol>`;
+  });
+
+  // Bullet lists
+  html = html.replace(/((?:^[-*] .+\n?)+)/gm, (match) => {
+    const items = match.trim().split('\n').map(l => `<li>${l.replace(/^[-*] /, '')}</li>`).join('');
+    return `<ul>${items}</ul>`;
+  });
+
+  // Paragraph breaks
+  html = html.replace(/\n{2,}/g, '</p><p>');
+  html = html.replace(/\n/g, '<br>');
+  html = `<p>${html}</p>`;
+
+  // Fix double-wrapped paragraphs around headings and lists
+  html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+  html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<[ou]l>)/g, '$1');
+  html = html.replace(/(<\/[ou]l>)<\/p>/g, '$1');
+
+  return html;
 }
 
-/* ── Helpers ──────────────────────────────────────────────────────────── */
-function artifact(type, icon, title) {
-  const div = document.createElement('div');
-  div.className = 'artifact';
-  div.innerHTML = `
-    <div class="artifact-header">
-      <div class="artifact-title">
-        <div class="artifact-icon ${type}">${icon}</div>
-        <span>${title}</span>
-      </div>
-    </div>
-    <div class="artifact-body"></div>
-  `;
-  return div;
+// ── Utilities ──────────────────────────────────────────────────────────────
+function formatCurrency(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 }
 
-function addCopyBtn(wrap, text, successMsg) {
-  const header = wrap.querySelector('.artifact-header');
-  const btn = document.createElement('button');
-  btn.className = 'copy-btn';
-  btn.textContent = 'Copy';
-  btn.onclick = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = '✓ Copied';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-    });
-  };
-  header.appendChild(btn);
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function esc(str) {
@@ -581,4 +706,38 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function showToast(message, type = '') {
+  let toast = document.getElementById('globalToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'globalToast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.className = `toast ${type}`;
+  // Force reflow
+  toast.offsetHeight;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────
+async function apiGet(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPost(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }

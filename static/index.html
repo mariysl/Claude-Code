@@ -3,74 +3,220 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BizAuto — Business Process Automation</title>
+  <title>Budget Bestie 💕</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">
-      <span class="logo-icon">⚡</span>
-      <span class="logo-text">BizAuto</span>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-logo">💕</span>
+        <div>
+          <h1 class="header-title">Budget Bestie</h1>
+          <p class="header-sub">Your AI-powered money companion</p>
+        </div>
+      </div>
+      <div class="header-status" id="headerStatus">
+        <span class="status-pill demo" id="connectionPill">📊 Demo Mode</span>
+      </div>
     </div>
+  </header>
 
-    <nav class="nav">
-      <div class="nav-section-label">Automate</div>
-      <button class="nav-btn active" onclick="setExample('')">New Process</button>
-      <div class="nav-section-label">Examples</div>
-      <button class="nav-btn" onclick="setExample('plan_launch')">Product Launch Plan</button>
-      <button class="nav-btn" onclick="setExample('sales_email')">Sales Email Campaign</button>
-      <button class="nav-btn" onclick="setExample('roi_analysis')">ROI Analysis</button>
-      <button class="nav-btn" onclick="setExample('onboarding')">Employee Onboarding</button>
-      <button class="nav-btn" onclick="setExample('meeting')">Weekly Team Meeting</button>
-      <button class="nav-btn" onclick="setExample('social')">Social Media Campaign</button>
-      <button class="nav-btn" onclick="setExample('sop')">Write an SOP</button>
-    </nav>
+  <!-- Tab Nav -->
+  <nav class="tab-nav" id="tabNav">
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="bank" onclick="switchTab('bank')">🏦 My Bank</button>
+    <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">✨ AI Insights</button>
+    <button class="tab-btn" data-tab="budget" onclick="switchTab('budget')">📋 Budget</button>
+    <button class="tab-btn" data-tab="purchase" onclick="switchTab('purchase')">🛍️ Check Purchase</button>
+  </nav>
 
-    <div class="sidebar-footer">
-      <div class="powered-by">Powered by Claude claude-opus-4-6</div>
-    </div>
-  </aside>
+  <!-- Main Content -->
+  <main class="app-main">
 
-  <!-- Main -->
-  <main class="main">
-    <header class="header">
-      <h1>Business Process Automation</h1>
-      <p class="subtitle">Describe any business process — Claude will automate it for you.</p>
-    </header>
+    <!-- ── DASHBOARD TAB ── -->
+    <section class="tab-panel active" id="tab-dashboard">
 
-    <!-- Input area -->
-    <section class="input-section">
-      <div class="input-wrapper">
-        <textarea
-          id="processInput"
-          class="process-input"
-          placeholder="Describe what you want to automate...&#10;&#10;Examples:&#10;• Plan a SaaS product launch for Q2&#10;• Create an onboarding checklist for new sales reps&#10;• Draft outreach emails for potential investors&#10;• Calculate ROI on a $50k marketing campaign&#10;• Build a weekly marketing report template"
-          rows="5"
-        ></textarea>
-        <div class="input-actions">
-          <span class="char-count" id="charCount">0 / 2000</span>
-          <button class="run-btn" id="runBtn" onclick="runAutomation()">
-            <span class="run-icon">▶</span> Automate
-          </button>
+      <!-- Summary Cards -->
+      <div class="summary-grid">
+        <div class="summary-card income">
+          <div class="summary-icon">💰</div>
+          <div class="summary-body">
+            <div class="summary-label">Monthly Income</div>
+            <div class="summary-value" id="summaryIncome">$4,000.00</div>
+          </div>
+        </div>
+        <div class="summary-card spent">
+          <div class="summary-icon">💳</div>
+          <div class="summary-body">
+            <div class="summary-label">Total Spent</div>
+            <div class="summary-value" id="summarySpent">$0.00</div>
+          </div>
+        </div>
+        <div class="summary-card remaining">
+          <div class="summary-icon">🌸</div>
+          <div class="summary-body">
+            <div class="summary-label">Remaining</div>
+            <div class="summary-value" id="summaryRemaining">$4,000.00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="card chart-card">
+          <h2 class="card-title">Spending Breakdown</h2>
+          <div class="donut-container">
+            <canvas id="donutChart"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <h2 class="card-title">Budget vs Spent</h2>
+          <div class="bar-container">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bars -->
+      <div class="card">
+        <h2 class="card-title">Budget Progress</h2>
+        <div id="categoryProgress"></div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="card">
+        <h2 class="card-title">Recent Transactions</h2>
+        <div id="transactionList"></div>
+      </div>
+
+    </section>
+
+    <!-- ── MY BANK TAB ── -->
+    <section class="tab-panel" id="tab-bank">
+      <div class="card bank-card">
+        <h2 class="card-title">🏦 Connect Your Bank</h2>
+        <div id="bankContent">
+          <div class="loading-spinner"></div>
         </div>
       </div>
     </section>
 
-    <!-- Output area -->
-    <section class="output-section" id="outputSection" style="display:none">
-      <!-- Status bar -->
-      <div class="status-bar" id="statusBar">
-        <span class="status-dot"></span>
-        <span class="status-text" id="statusText">Processing...</span>
+    <!-- ── AI INSIGHTS TAB ── -->
+    <section class="tab-panel" id="tab-insights">
+
+      <!-- Get Insights -->
+      <div class="card">
+        <h2 class="card-title">✨ Get Personalized Insights</h2>
+        <p class="card-desc">Let Budget Bestie analyze your spending and give you personalized tips 💕</p>
+        <button class="btn btn-primary" id="getInsightsBtn" onclick="getInsights()">✨ Get My Insights</button>
+        <div id="insightsOutput" class="insights-output" style="display:none"></div>
       </div>
 
-      <!-- Claude's narrative text -->
-      <div class="response-text card" id="responseText" style="display:none"></div>
+      <!-- Budget Suggestion -->
+      <div class="card">
+        <h2 class="card-title">💡 AI Budget Suggestion</h2>
+        <p class="card-desc">Tell Budget Bestie your income and priorities, and she'll build your perfect budget!</p>
+        <div class="suggest-form">
+          <div class="form-group">
+            <label class="form-label">Monthly Income</label>
+            <input type="number" id="suggestIncome" class="form-input" placeholder="4000" min="0" step="100" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">My Priorities</label>
+            <div class="checkbox-grid">
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="savings" /> 💰 Savings
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="fun" /> 🎉 Fun & Going Out
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="beauty" /> 💄 Shopping & Beauty
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="emergency fund" /> 🚨 Emergency Fund
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="debt payoff" /> 💳 Debt Payoff
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" name="priority" value="travel" /> ✈️ Travel
+              </label>
+            </div>
+          </div>
+          <button class="btn btn-secondary" id="suggestBtn" onclick="suggestBudget()">💡 Build My Budget</button>
+        </div>
+        <div id="suggestionOutput" class="suggestion-output" style="display:none"></div>
+      </div>
 
-      <!-- Artifacts grid -->
-      <div class="artifacts-grid" id="artifactsGrid"></div>
     </section>
+
+    <!-- ── BUDGET SETTINGS TAB ── -->
+    <section class="tab-panel" id="tab-budget">
+      <div class="card">
+        <h2 class="card-title">📋 Budget Settings</h2>
+        <p class="card-desc">Set your monthly income and spending limits per category.</p>
+
+        <div class="form-group" style="max-width:320px">
+          <label class="form-label">Monthly Income ($)</label>
+          <input type="number" id="budgetIncome" class="form-input" placeholder="4000" min="0" step="100" />
+        </div>
+
+        <h3 class="section-subtitle">Category Limits</h3>
+        <div class="budget-form-grid" id="budgetFormGrid">
+          <!-- populated by JS -->
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveBudget()">💾 Save Budget</button>
+          <button class="btn btn-outline" onclick="switchTab('insights'); document.getElementById('suggestIncome').focus()">✨ AI Suggest</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CHECK PURCHASE TAB ── -->
+    <section class="tab-panel" id="tab-purchase">
+      <div class="card">
+        <h2 class="card-title">🛍️ Check a Purchase</h2>
+        <p class="card-desc">Thinking about buying something? Let Budget Bestie check if it fits your budget! 💕</p>
+
+        <div class="purchase-form">
+          <div class="form-group">
+            <label class="form-label">What are you buying?</label>
+            <input type="text" id="purchaseItem" class="form-input" placeholder="e.g. New sneakers from Nike" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Amount ($)</label>
+              <input type="number" id="purchaseAmount" class="form-input" placeholder="0.00" min="0" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="purchaseCategory" class="form-input form-select">
+                <option value="Bills & Rent">🏠 Bills & Rent</option>
+                <option value="Groceries & Food">🛒 Groceries & Food</option>
+                <option value="Going Out & Fun">🎉 Going Out & Fun</option>
+                <option value="Shopping & Beauty" selected>💄 Shopping & Beauty</option>
+                <option value="Emergency Fund">🚨 Emergency Fund</option>
+                <option value="Savings">💰 Savings</option>
+                <option value="Other">📦 Other</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="checkBtn" onclick="checkPurchase()">🔍 Check It!</button>
+        </div>
+
+        <div id="purchaseResult" style="display:none"></div>
+      </div>
+    </section>
+
   </main>
 
   <script src="/static/app.js"></script>
