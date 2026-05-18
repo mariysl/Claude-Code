@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Bestie 💕 — Connecting your bank...</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #fdf2f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(236,72,153,0.18);
+    }
+    .logo { font-size: 52px; margin-bottom: 12px; }
+    h1 { font-size: 22px; font-weight: 700; color: #db2777; margin-bottom: 8px; }
+    p { color: #6b7280; font-size: 14px; line-height: 1.6; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #fce7f3;
+      border-top-color: #ec4899;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 24px auto 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { color: #ef4444; font-size: 14px; margin-top: 16px; display: none; }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #db2777;
+      font-size: 14px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">💕</div>
+    <h1>Finishing up...</h1>
+    <p>Completing your bank connection securely. Just a moment!</p>
+    <div class="spinner" id="spinner"></div>
+    <p class="error-msg" id="errorMsg"></p>
+    <a href="/" class="back-link" id="backLink" style="display:none;">← Back to Budget Bestie</a>
+  </div>
+
+  <script>
+    (async function () {
+      function showError(msg) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('errorMsg').textContent = msg;
+        document.getElementById('errorMsg').style.display = 'block';
+        document.getElementById('backLink').style.display = 'inline-block';
+      }
+
+      try {
+        // Fetch the stored link token from the server
+        const res = await fetch('/api/plaid/pending-token');
+        const { link_token } = await res.json();
+
+        if (!link_token) {
+          showError('Session expired. Please try connecting your bank again.');
+          return;
+        }
+
+        // Re-initialize Plaid Link with receivedRedirectUri to complete OAuth
+        const handler = Plaid.create({
+          token: link_token,
+          receivedRedirectUri: window.location.href,
+          onSuccess: async (publicToken, metadata) => {
+            try {
+              const exchRes = await fetch('/api/plaid/exchange-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  public_token: publicToken,
+                  institution_name: metadata.institution?.name || 'Your Bank'
+                })
+              });
+              const exchData = await exchRes.json();
+              if (exchData.ok) {
+                window.location.href = '/?connected=1';
+              } else {
+                showError('Connection failed: ' + (exchData.error || 'Unknown error'));
+              }
+            } catch (e) {
+              showError('Error completing connection: ' + e.message);
+            }
+          },
+          onExit: (err) => {
+            if (err) {
+              showError('Bank connection cancelled or failed.');
+            } else {
+              window.location.href = '/';
+            }
+          }
+        });
+
+        handler.open();
+      } catch (e) {
+        showError('Something went wrong: ' + e.message);
+      }
+    })();
+  </script>
+</body>
+</html>

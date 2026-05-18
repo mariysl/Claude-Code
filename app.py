@@ -50,6 +50,7 @@ user_data = {
     "access_token": None,
     "item_id": None,
     "connected_bank": None,
+    "pending_link_token": None,
     "income": 4000.0,
     "budgets": {
         "Bills & Rent":       {"limit": 1500.0, "color": "#f87171", "icon": "🏠"},
@@ -64,13 +65,14 @@ user_data = {
 }
 
 # ── Plaid config ─────────────────────────────────────────────────────────────
-PLAID_CLIENT_ID = os.environ.get("PLAID_CLIENT_ID")
-PLAID_SECRET    = os.environ.get("PLAID_SECRET")
-PLAID_ENV       = os.environ.get("PLAID_ENV", "sandbox")
-PLAID_BASE_URL  = {
-    "sandbox":    "https://sandbox.plaid.com",
-    "development":"https://development.plaid.com",
-    "production": "https://production.plaid.com",
+PLAID_CLIENT_ID   = os.environ.get("PLAID_CLIENT_ID")
+PLAID_SECRET      = os.environ.get("PLAID_SECRET")
+PLAID_ENV         = os.environ.get("PLAID_ENV", "sandbox")
+PLAID_REDIRECT_URI = os.environ.get("PLAID_REDIRECT_URI")  # e.g. https://yourapp.onrender.com/oauth-callback
+PLAID_BASE_URL    = {
+    "sandbox":     "https://sandbox.plaid.com",
+    "development": "https://development.plaid.com",
+    "production":  "https://production.plaid.com",
 }.get(PLAID_ENV, "https://sandbox.plaid.com")
 
 # ── Anthropic client ─────────────────────────────────────────────────────────
@@ -185,12 +187,20 @@ async def index():
         return f.read()
 
 
+@app.get("/oauth-callback", response_class=HTMLResponse)
+async def oauth_callback():
+    """Handles OAuth redirect from banks like Chase, BofA, Wells Fargo."""
+    with open("static/oauth-callback.html") as f:
+        return f.read()
+
+
 @app.get("/api/status")
 async def get_status():
     return {
-        "bank_connected":  user_data["access_token"] is not None,
-        "bank_name":       user_data["connected_bank"],
+        "bank_connected":   user_data["access_token"] is not None,
+        "bank_name":        user_data["connected_bank"],
         "plaid_configured": bool(PLAID_CLIENT_ID and PLAID_SECRET),
+        "plaid_env":        PLAID_ENV,
         "ai_configured":    bool(_anthropic_key),
     }
 
@@ -220,25 +230,33 @@ async def create_link_token():
     if not (PLAID_CLIENT_ID and PLAID_SECRET):
         return {"link_token": None, "demo": True}
     try:
+        payload = {
+            "client_id": PLAID_CLIENT_ID,
+            "secret": PLAID_SECRET,
+            "client_name": "Budget Bestie",
+            "country_codes": ["US"],
+            "language": "en",
+            "user": {"client_user_id": "budget-bestie-user"},
+            "products": ["transactions"],
+        }
+        # Required for OAuth banks (Chase, BofA, Wells Fargo, etc.)
+        if PLAID_REDIRECT_URI:
+            payload["redirect_uri"] = PLAID_REDIRECT_URI
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{PLAID_BASE_URL}/link/token/create",
-                json={
-                    "client_id": PLAID_CLIENT_ID,
-                    "secret": PLAID_SECRET,
-                    "client_name": "Budget Bestie",
-                    "country_codes": ["US"],
-                    "language": "en",
-                    "user": {"client_user_id": "budget-bestie-user"},
-                    "products": ["transactions"],
-                },
-            )
+            resp = await client.post(f"{PLAID_BASE_URL}/link/token/create", json=payload)
             data = resp.json()
             if "link_token" in data:
-                return {"link_token": data["link_token"], "demo": False}
+                user_data["pending_link_token"] = data["link_token"]
+                return {"link_token": data["link_token"], "demo": False, "redirect_uri": PLAID_REDIRECT_URI}
             return {"link_token": None, "demo": False, "error": data.get("error_message", "Unknown error")}
     except Exception as e:
         return {"link_token": None, "demo": False, "error": str(e)}
+
+
+@app.get("/api/plaid/pending-token")
+async def get_pending_token():
+    """Used by the OAuth callback page to re-initialize Plaid Link."""
+    return {"link_token": user_data.get("pending_link_token")}
 
 
 @app.post("/api/plaid/exchange-token")

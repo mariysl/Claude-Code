@@ -46,6 +46,11 @@ async function initApp() {
     renderDashboard();
     renderBankTab();
     populateBudgetForm();
+    // Show success toast when returning from OAuth bank redirect
+    if (new URLSearchParams(window.location.search).get('connected')) {
+      showToast('Bank connected successfully! 🎉', 'success');
+      history.replaceState({}, '', '/');
+    }
   } catch (e) {
     console.error('Init error:', e);
   }
@@ -57,6 +62,7 @@ async function checkStatus() {
     state.bankConnected   = data.bank_connected;
     state.bankName        = data.bank_name;
     state.plaidConfigured = data.plaid_configured;
+    state.plaidEnv        = data.plaid_env;
     state.aiConfigured    = data.ai_configured;
 
     const pill = document.getElementById('connectionPill');
@@ -351,12 +357,16 @@ function renderBankTab() {
     return;
   }
 
+  const envLabel = state.plaidEnv === 'production' ? '🟢 Production'
+                 : state.plaidEnv === 'development' ? '🔵 Development (real banks)'
+                 : '🟡 Sandbox (test only)';
   container.innerHTML = `
     <div class="bank-status-icon">🔐</div>
     <div class="bank-status-text">Connect Your Bank Securely</div>
     <div class="bank-status-sub">
-      Connect your bank account using Plaid's secure, bank-level encryption. Budget Bestie never stores your login credentials.
+      Connect your bank using Plaid's secure, bank-level encryption. Budget Bestie <strong>never</strong> stores your login credentials.
     </div>
+    <div class="bank-env-badge">${envLabel}</div>
     <button class="btn btn-primary" onclick="initPlaidLink()" id="plaidBtn">🏦 Connect Your Bank</button>
   `;
 }
