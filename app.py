@@ -5,17 +5,35 @@ Powered by Claude AI with Plaid bank integration.
 import json
 import os
 import asyncio
+import secrets
 from typing import AsyncGenerator
 
 import anthropic
 import httpx
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+APP_PASSWORD = os.getenv("APP_PASSWORD", "bestie2024")
+SESSION_TOKEN = secrets.token_hex(32)  # generated once at startup
+
+UNPROTECTED = {"/login", "/static"}
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if path == "/login" or path.startswith("/static"):
+            return await call_next(request)
+        cookie = request.cookies.get("session")
+        if cookie != SESSION_TOKEN:
+            return RedirectResponse(url="/login", status_code=302)
+        return await call_next(request)
 
 app = FastAPI(title="Budget Bestie")
 
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -99,6 +117,67 @@ def _map_plaid_category(plaid_categories: list) -> str:
     return "Other"
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(error: str = ""):
+    error_html = f'<p class="error">Wrong password, try again 💔</p>' if error else ""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Bestie 💕</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: 'Poppins', sans-serif; background: #fdf2f8; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center; }}
+    .card {{ background: #fff; border-radius: 24px; padding: 48px 40px; width: 100%; max-width: 400px;
+             box-shadow: 0 8px 40px rgba(236,72,153,0.18); text-align: center; }}
+    .logo {{ font-size: 48px; margin-bottom: 8px; }}
+    h1 {{ font-size: 26px; font-weight: 700; color: #db2777; margin-bottom: 4px; }}
+    .sub {{ color: #9d174d; font-size: 14px; margin-bottom: 32px; }}
+    label {{ display: block; text-align: left; font-size: 13px; font-weight: 600;
+             color: #6b7280; margin-bottom: 6px; }}
+    input {{ width: 100%; padding: 14px 16px; border: 2px solid #fce7f3; border-radius: 12px;
+             font-family: 'Poppins', sans-serif; font-size: 15px; outline: none;
+             transition: border-color .2s; margin-bottom: 20px; }}
+    input:focus {{ border-color: #ec4899; }}
+    button {{ width: 100%; padding: 14px; background: linear-gradient(135deg, #ec4899, #db2777);
+              color: #fff; border: none; border-radius: 12px; font-family: 'Poppins', sans-serif;
+              font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity .2s; }}
+    button:hover {{ opacity: .9; }}
+    .error {{ color: #ef4444; font-size: 13px; margin-bottom: 16px; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">💕</div>
+    <h1>Budget Bestie</h1>
+    <p class="sub">Your personal finance companion</p>
+    {error_html}
+    <form method="POST" action="/login">
+      <label>Password</label>
+      <input type="password" name="password" placeholder="Enter your password" autofocus>
+      <button type="submit">Sign In ✨</button>
+    </form>
+  </div>
+</body>
+</html>"""
+
+@app.post("/login")
+async def login(password: str = Form(...)):
+    if password == APP_PASSWORD:
+        response = RedirectResponse(url="/", status_code=302)
+        response.set_cookie("session", SESSION_TOKEN, httponly=True, samesite="lax", max_age=60*60*24*30)
+        return response
+    return RedirectResponse(url="/login?error=1", status_code=302)
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie("session")
+    return response
 
 @app.get("/", response_class=HTMLResponse)
 async def index():

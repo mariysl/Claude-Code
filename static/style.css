@@ -672,6 +672,21 @@ html, body {
 .empty-state-icon { font-size: 40px; margin-bottom: 8px; }
 .empty-state-text { font-size: 14px; }
 
+.logout-btn {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 6px 16px;
+  text-decoration: none;
+  margin-left: 10px;
+  transition: background .2s;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.25); color: #fff; }
+
 /* ── Responsive tweaks ────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-main { padding: 16px; }
